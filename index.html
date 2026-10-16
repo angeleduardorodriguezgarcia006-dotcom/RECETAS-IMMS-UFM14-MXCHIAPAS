@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Receta Médica Digital - IMSS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        imss: {
+                            green: '#006837',
+                            darkgreen: '#004d28',
+                            lightgreen: '#e6f0eb',
+                            gold: '#BC955C',
+                            darkgold: '#987641',
+                            wine: '#691C32',
+                            gray: '#6F7271'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                        mono: ['Roboto Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos específicos para impresión */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .recipe-container {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            @page {
+                size: letter portrait;
+                margin: 8mm;
+            }
+        }
+
+        /* Estilo simulado de folio/código de barras */
+        .barcode-font {
+            font-family: 'Libre Barcode 39', cursive, monospace;
+        }
+
+        /* Marca de agua sutil */
+        .watermark {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 100 100' opacity='0.03'%3E%3Cpath d='M50 10 C30 10 20 30 20 50 C20 70 30 90 50 90 C70 90 80 70 80 50 C80 30 70 10 50 10 Z' fill='%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+
+    <!-- Encabezado Principal (No imprimible) -->
+    <header class="bg-imss-green text-white shadow-md no-print border-b-4 border-imss-gold">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-2 rounded-lg shadow-sm">
+                    <!-- Logo IMSS Simplificado SVG -->
+                    <svg class="h-10 w-auto text-imss-green" viewBox="0 0 120 120" fill="currentColor">
+                        <path d="M60 10 C32.4 10 10 32.4 10 60 C10 87.6 32.4 110 60 110 C87.6 110 110 87.6 110 60 C110 32.4 87.6 10 60 10 Z M60 20 C82.1 20 100 37.9 100 60 C100 82.1 82.1 100 60 100 C37.9 100 20 82.1 20 60 C20 37.9 37.9 20 60 20 Z"/>
+                        <path d="M45 35 H75 V45 H45 Z M40 50 H80 V60 H40 Z M35 65 H85 V90 H35 Z" fill-opacity="0.8"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl leading-tight">Sistema de Receta Médica Digital</h1>
+                    <p class="text-xs text-imss-lightgreen font-medium">Instituto Mexicano del Seguro Social - Control de Prescripciones</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="autocompletar()" class="flex items-center gap-2 bg-imss-gold hover:bg-imss-darkgold text-white px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow">
+                    <i data-lucide="wand-2" class="w-4 h-4"></i>
+                    Cargar Ejemplo
+                </button>
+                <button onclick="limpiarFormulario()" class="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-2 rounded-lg font-semibold text-sm transition-all">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    Limpiar
+                </button>
+                <button onclick="imprimirReceta()" class="flex items-center gap-2 bg-white text-imss-green hover:bg-emerald-50 px-5 py-2 rounded-lg font-bold text-sm shadow transition-all">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    Imprimir / PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- PANEL DE FORMULARIO (No imprimible) -->
+        <section class="lg:col-span-5 bg-white p-5 rounded-xl shadow-lg no-print border border-slate-200 h-fit">
+            <h2 class="text-lg font-bold text-imss-green border-b border-slate-200 pb-3 mb-4 flex items-center gap-2">
+                <i data-lucide="file-edit" class="w-5 h-5"></i>
+                Datos de la Receta
+            </h2>
+
+            <form id="recipeForm" class="space-y-4 text-xs" onsubmit="return false;">
+                
+                <!-- Sección 1: Datos de la Unidad -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                    <h3 class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        <i data-lucide="building-2" class="w-3.5 h-3.5 text-imss-green"></i> 1. Unidad Médica
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Delegación</label>
+                            <input type="text" id="inputDelegacion" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none" placeholder="Ej. TABASCO">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">UMF / Hospital</label>
+                            <input type="text" id="inputUmf" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none" placeholder="Ej. UMF No. 43">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Turno</label>
+                            <select id="inputTurno" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none">
+                                <option value="MATUTINO">MATUTINO</option>
+                                <option value="VESPERTINO">VESPERTINO</option>
+                                <option value="NOCTURNO">NOCTURNO</option>
+                                <option value="JORNADA ACUMULADA">JORNADA ACUMULADA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Consultorio</label>
+                            <input type="text" id="inputConsultorio" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none" placeholder="Ej. 04">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 2: Datos del Paciente -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                    <h3 class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-imss-green"></i> 2. Datos del Paciente
+                    </h3>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">Nombre Completo del Paciente</label>
+                        <input type="text" id="inputPaciente" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none uppercase" placeholder="APELLIDOS NOMBRE(S)">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">NSS (11 dígitos)</label>
+                            <input type="text" id="inputNss" maxlength="11" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none font-mono" placeholder="12345678901">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Agregado Médico</label>
+                            <input type="text" id="inputAgregado" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none uppercase" placeholder="Ej. 1M1980OR">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">CURP</label>
+                        <input type="text" id="inputCurp" maxlength="18" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none font-mono uppercase" placeholder="XXXX000000XXXXXX00">
+                    </div>
+                </div>
+
+                <!-- Sección 3: Datos del Médico -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                    <h3 class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        <i data-lucide="stethoscope" class="w-3.5 h-3.5 text-imss-green"></i> 3. Datos del Médico
+                    </h3>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">Nombre del Médico Prescriptor</label>
+                        <input type="text" id="inputMedico" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none uppercase" placeholder="DR(A). NOMBRE Y APELLIDOS">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Cédula Profesional</label>
+                            <input type="text" id="inputCedula" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none font-mono" placeholder="12345678">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">Matrícula IMSS</label>
+                            <input type="text" id="inputMatricula" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none font-mono" placeholder="99081234">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección 4: Lista Dinámica de Medicamentos -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                            <i data-lucide="pill" class="w-3.5 h-3.5 text-imss-green"></i> 4. Prescripción de Medicamentos
+                        </h3>
+                        <button type="button" onclick="agregarMedicamentoForm()" class="bg-imss-green hover:bg-imss-darkgreen text-white text-[11px] px-2 py-1 rounded flex items-center gap-1 transition-all">
+                            <i data-lucide="plus" class="w-3 h-3"></i> Agregar
+                        </button>
+                    </div>
+
+                    <div id="medicamentosFormContainer" class="space-y-3">
+                        <!-- Aquí se insertan dinámicamente los campos de medicamentos -->
+                    </div>
+                </div>
+
+                <!-- Sección 5: Diagnóstico e Indicaciones -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                    <h3 class="font-bold text-slate-700 uppercase tracking-wider text-[11px] flex items-center gap-1">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5 text-imss-green"></i> 5. Diagnóstico e Indicaciones Adicionales
+                    </h3>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">Diagnóstico / CIE-10 (Opcional)</label>
+                        <input type="text" id="inputDiagnostico" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none uppercase" placeholder="Ej. J00 RINITIS AGUDA (RESFRIADO COMÚN)">
+                    </div>
+                    <div>
+                        <label class="block font-medium text-slate-600 mb-1">Indicaciones Adicionales / Cuidados</label>
+                        <textarea id="inputIndicaciones" rows="2" class="w-full p-2 border rounded focus:ring-2 focus:ring-imss-green outline-none" placeholder="Ej. Abundantes líquidos, reposo relativo por 3 días..."></textarea>
+                    </div>
+                </div>
+
+            </form>
+        </section>
+
+        <!-- VISTA PREVIA DE LA RECETA ESTILO IMSS (Imprimible) -->
+        <section class="lg:col-span-7 flex justify-center">
+            
+            <div class="recipe-container bg-white w-full max-w-[215mm] p-6 shadow-2xl rounded-sm border border-slate-300 text-slate-900 font-sans relative flex flex-col justify-between min-h-[279mm] watermark">
+                
+                <!-- PARTE SUPERIOR / ENCABEZADO OFICIAL -->
+                <div>
+                    <!-- Encabezado Institucional -->
+                    <div class="border-b-2 border-slate-800 pb-2 mb-3">
+                        <div class="flex justify-between items-start gap-2">
+                            <!-- Logos -->
+                            <div class="flex items-center gap-3">
+                                <!-- Logo Escudo Nacional / Gob. Mexico -->
+                                <div class="text-slate-800 flex flex-col items-center">
+                                    <svg class="w-12 h-12" viewBox="0 0 100 100">
+                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#691C32" stroke-width="3"/>
+                                        <path d="M50 20 L55 35 L70 35 L58 45 L62 60 L50 50 L38 60 L42 45 L30 35 L45 35 Z" fill="#BC955C"/>
+                                    </svg>
+                                    <span class="text-[7px] font-bold text-imss-wine uppercase tracking-tighter">Gobierno de México</span>
+                                </div>
+                                <div class="h-10 w-[1px] bg-slate-300"></div>
+                                <!-- Logo IMSS -->
+                                <div class="flex items-center gap-2">
+                                    <div class="w-10 h-10 text-imss-green flex items-center justify-center">
+                                        <svg viewBox="0 0 100 100" class="w-full h-full fill-current">
+                                            <rect x="10" y="10" width="80" height="80" rx="10" fill="#006837"/>
+                                            <path d="M30 30 H70 V40 H30 Z M30 45 H70 V55 H30 Z M30 60 H70 V75 H30 Z" fill="#FFFFFF"/>
+                                            <circle cx="50" cy="35" r="3" fill="#BC955C"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h2 class="font-extrabold text-sm leading-none text-imss-green tracking-tight">IMSS</h2>
+                                        <p class="text-[8px] font-bold text-slate-600 leading-tight">INSTITUTO MEXICANO DEL SEGURO SOCIAL</p>
+                                        <p class="text-[7px] text-slate-500 leading-tight">SEGURIDAD Y SOLIDARIDAD SOCIAL</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Folio y Tipo Documento -->
+                            <div class="text-right">
+                                <span class="inline-block bg-imss-green text-white text-[9px] font-bold px-2 py-0.5 rounded">
+                                    RECETA MÉDICA INDIVIDUAL
+                                </span>
+                                <div class="mt-1">
+                                    <span class="text-[8px] text-slate-500 block">FOLIO DE RECETA:</span>
+                                    <span id="previewFolio" class="font-mono font-bold text-sm text-red-700">A89-3849201</span>
+                                </div>
+                                <div class="text-[8px] text-slate-500 mt-0.5">
+                                    FECHA: <span id="previewFecha" class="font-bold text-slate-800">--/--/----</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla Datos de la Unidad -->
+                    <div class="border border-slate-700 text-[9px] mb-3 grid grid-cols-4 bg-slate-50/50">
+                        <div class="p-1 border-r border-b border-slate-400">
+                            <span class="block text-[7px] text-slate-500 font-semibold uppercase">DELEGACIÓN:</span>
+                            <span id="previewDelegacion" class="font-bold uppercase">--</span>
+                        </div>
+                        <div class="p-1 border-r border-b border-slate-400">
+                            <span class="block text-[7px] text-slate-500 font-semibold uppercase">UNIDAD / UMF:</span>
+                            <span id="previewUmf" class="font-bold uppercase">--</span>
+                        </div>
+                        <div class="p-1 border-r border-b border-slate-400">
+                            <span class="block text-[7px] text-slate-500 font-semibold uppercase">TURNO:</span>
+                            <span id="previewTurno" class="font-bold uppercase">--</span>
+                        </div>
+                        <div class="p-1 border-b border-slate-400">
+                            <span class="block text-[7px] text-slate-500 font-semibold uppercase">CONSULTORIO:</span>
+                            <span id="previewConsultorio" class="font-bold uppercase">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Tabla Datos Paciente -->
+                    <div class="border border-slate-700 text-[9px] mb-3 bg-white">
+                        <div class="bg-slate-100 p-1 font-bold border-b border-slate-700 text-[8px] uppercase tracking-wider text-slate-700 flex justify-between">
+                            <span>DATOS IDENTIFICATIVOS DEL DERECHOHABIENTE</span>
+                            <span class="text-imss-green">SISTEMA ANE-IMSS</span>
+                        </div>
+                        <div class="grid grid-cols-12">
+                            <div class="col-span-6 p-1.5 border-r border-b border-slate-300">
+                                <span class="block text-[7px] text-slate-500 font-semibold uppercase">NOMBRE DEL PACIENTE:</span>
+                                <span id="previewPaciente" class="font-bold text-xs uppercase text-slate-900">--</span>
+                            </div>
+                            <div class="col-span-3 p-1.5 border-r border-b border-slate-300">
+                                <span class="block text-[7px] text-slate-500 font-semibold uppercase">NSS:</span>
+                                <span id="previewNss" class="font-mono font-bold text-slate-900">--</span>
+                            </div>
+                            <div class="col-span-3 p-1.5 border-b border-slate-300">
+                                <span class="block text-[7px] text-slate-500 font-semibold uppercase">AGREGADO MEDICO:</span>
+                                <span id="previewAgregado" class="font-bold uppercase">--</span>
+                            </div>
+                            <div class="col-span-12 p-1.5 bg-slate-50/30">
+                                <span class="block text-[7px] text-slate-500 font-semibold uppercase">CURP:</span>
+                                <span id="previewCurp" class="font-mono font-bold text-slate-800 uppercase tracking-widest">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cuerpos de Prescripción (Medicamentos) -->
+                    <div class="border border-slate-700 rounded-sm mb-3">
+                        <div class="bg-imss-green text-white p-1 font-bold text-[8px] uppercase tracking-wider flex justify-between">
+                            <span>RP: PRESCRIPCIÓN MÉDICA Y DOSIFICACIÓN</span>
+                            <span>SURTIMIENTO EN FARMACIA UMF</span>
+                        </div>
+
+                        <!-- Lista de medicamentos prescriptos -->
+                        <div id="previewMedicamentosList" class="divide-y divide-slate-300 min-h-[220px]">
+                            <!-- Se renderiza por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Diagnóstico / Observaciones -->
+                    <div class="border border-slate-700 p-2 text-[9px] mb-3 bg-slate-50/30 rounded-sm">
+                        <span class="block text-[7px] text-slate-500 font-bold uppercase">DIAGNÓSTICO / INDICACIONES ADICIONALES:</span>
+                        <div id="previewDiagnostico" class="font-semibold text-slate-800 uppercase mt-0.5">--</div>
+                        <div id="previewIndicaciones" class="text-slate-600 mt-1 whitespace-pre-line text-[8.5px]">--</div>
+                    </div>
+                </div>
+
+                <!-- PARTE INFERIOR / FIRMA Y VALIDACIÓN -->
+                <div class="pt-2 border-t-2 border-slate-800">
+                    <div class="grid grid-cols-12 gap-2 items-end">
+                        
+                        <!-- Código QR Simulado -->
+                        <div class="col-span-3 text-center border-r border-slate-300 pr-2">
+                            <div class="bg-slate-100 p-1 border border-slate-400 inline-block rounded">
+                                <!-- SVG Simulación QR -->
+                                <svg class="w-16 h-16" viewBox="0 0 100 100" fill="currentColor">
+                                    <path d="M0 0h30v30H0zM10 10h10v10H10zM70 0h30v30H70zM80 10h10v10H80zM0 70h30v30H0zM10 80h10v10H10z"/>
+                                    <path d="M40 0h10v20H40zM55 10h10v10H55zM35 35h30v10H35zM0 40h20v10H0zM80 40h20v20H80z"/>
+                                    <path d="M40 55h20v10H40zM25 60h10v30H25zM60 70h15v10H60zM75 80h25v20H75zM45 85h20v15H45z"/>
+                                </svg>
+                            </div>
+                            <span class="block text-[6px] text-slate-500 font-mono mt-1">FIRMA DIGITAL VERIFICADA</span>
+                        </div>
+
+                        <!-- Datos del Médico y Firma -->
+                        <div class="col-span-6 text-center px-2">
+                            <!-- Trazo simulado de firma -->
+                            <div class="h-10 flex items-center justify-center">
+                                <svg class="h-8 w-32 text-slate-700" viewBox="0 0 200 50">
+                                    <path d="M 10 30 Q 30 5, 50 30 T 90 30 T 130 10 T 170 35 L 190 20" fill="none" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <div class="border-t border-slate-700 pt-1">
+                                <span id="previewMedico" class="block font-bold text-[10px] text-slate-900 uppercase">DR. NOMBRE DEL MÉDICO</span>
+                                <div class="text-[8px] text-slate-600 flex justify-center gap-3 mt-0.5">
+                                    <span>CÉD. PROF: <strong id="previewCedula" class="font-mono">------</strong></span>
+                                    <span>MATRÍCULA: <strong id="previewMatricula" class="font-mono">------</strong></span>
+                                </div>
+                                <span class="block text-[7px] text-slate-400 uppercase mt-0.5">FIRMA AUTÓGRAFA Y SELLO DE LA UNIDAD</span>
+                            </div>
+                        </div>
+
+                        <!-- Código de Barras / Validación -->
+                        <div class="col-span-3 text-right pl-2">
+                            <div class="bg-slate-800 text-white p-1 text-[7px] rounded text-center mb-1">
+                                VALIDO POR 72 HRS EN FARMACIA
+                            </div>
+                            <div class="text-[8px] font-mono text-center tracking-widest text-slate-700 border border-slate-300 p-1 bg-slate-50">
+                                ||||| || |||||| |||| ||
+                                <span class="block text-[6px] mt-0.5">VALIDACIÓN ESTRUCTURAL IMSS</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Pie Institucional -->
+                    <div class="mt-2 text-center text-[7px] text-slate-500 border-t border-slate-200 pt-1 flex justify-between">
+                        <span>ESTE DOCUMENTO ES UNA REPRESENTACIÓN IMPRESA DE UNA RECETA MÉDICA DIGITAL.</span>
+                        <span class="font-bold">IMSS-SNTSS</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal Notificación Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-2 rounded-lg shadow-xl text-xs flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 no-print z-50">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toastMsg">Notificación</span>
+    </div>
+
+    <!-- JAVASCRIPT LÓGICA DE LA APLICACIÓN -->
+    <script>
+        // Estructura de Estado Inicial para Medicamentos
+        let medicamentos = [];
+
+        // Inicialización al cargar la página
+        window.onload = function() {
+            lucide.createIcons();
+            
+            // Establecer fecha actual por defecto
+            const hoy = new Date();
+            const fechaStr = hoy.toLocaleDateString('es-MX', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            document.getElementById('previewFecha').innerText = fechaStr;
+
+            // Generar Folio Aleatorio
+            generarFolio();
+
+            // Cargar receta por defecto
+            autocompletar();
+
+            // Vincular Listeners de Entradas en el Formulario
+            bindFormInputs();
+        };
+
+        // Genera un folio ficticio estilizado estilo IMSS
+        function generarFolio() {
+            const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const randomLetra = letras.charAt(Math.floor(Math.random() * letras.length));
+            const randomNum1 = Math.floor(10 + Math.random() * 90);
+            const randomNum2 = Math.floor(100000 + Math.random() * 900000);
+            document.getElementById('previewFolio').innerText = `${randomLetra}${randomNum1}-${randomNum2}`;
+        }
+
+        // Enlazar inputs con la vista previa en tiempo real
+        function bindFormInputs() {
+            const fields = [
+                { input: 'inputDelegacion', target: 'previewDelegacion', default: 'DELEGACIÓN' },
+                { input: 'inputUmf', target: 'previewUmf', default: 'UMF' },
+                { input: 'inputTurno', target: 'previewTurno', default: 'TURNO' },
+                { input: 'inputConsultorio', target: 'previewConsultorio', default: '00' },
+                { input: 'inputPaciente', target: 'previewPaciente', default: 'NOMBRE DEL PACIENTE' },
+                { input: 'inputNss', target: 'previewNss', default: '00000000000' },
+                { input: 'inputAgregado', target: 'previewAgregado', default: '----' },
+                { input: 'inputCurp', target: 'previewCurp', default: '------------------' },
+                { input: 'inputMedico', target: 'previewMedico', default: 'DR. NOMBRE DEL MÉDICO' },
+                { input: 'inputCedula', target: 'previewCedula', default: '------' },
+                { input: 'inputMatricula', target: 'previewMatricula', default: '------' },
+                { input: 'inputDiagnostico', target: 'previewDiagnostico', default: 'SIN DIAGNÓSTICO ESPECIFICADO' },
+                { input: 'inputIndicaciones', target: 'previewIndicaciones', default: 'Sin indicaciones adicionales.' }
+            ];
+
+            fields.forEach(f => {
+                const el = document.getElementById(f.input);
+                if (el) {
+                    el.addEventListener('input', () => {
+                        const val = el.value.trim();
+                        document.getElementById(f.target).innerText = val !== '' ? val : f.default;
+                    });
+                }
+            });
+        }
+
+        // Renderiza el formulario dinámico de medicamentos
+        function renderMedicamentosForm() {
+            const container = document.getElementById('medicamentosFormContainer');
+            container.innerHTML = '';
+
+            medicamentos.forEach((med, index) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-2.5 rounded border border-slate-300 space-y-2 relative shadow-sm';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center bg-slate-100 p-1 rounded font-bold text-[10px] text-slate-700">
+                        <span>Medicamento #${index + 1}</span>
+                        ${medicamentos.length > 1 ? `
+                            <button type="button" onclick="eliminarMedicamento(${index})" class="text-red-600 hover:text-red-800 font-bold p-0.5">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-2">
+                            <label class="block font-medium text-[10px] text-slate-600 mb-0.5">Nombre / Clave</label>
+                            <input type="text" value="${escapeHtml(med.nombre)}" oninput="actualizarMedicamento(${index}, 'nombre', this.value)" class="w-full p-1 border rounded text-xs outline-none focus:border-imss-green" placeholder="Ej. PARACETAMOL 500 mg">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-[10px] text-slate-600 mb-0.5">Cantidad</label>
+                            <input type="text" value="${escapeHtml(med.cantidad)}" oninput="actualizarMedicamento(${index}, 'cantidad', this.value)" class="w-full p-1 border rounded text-xs outline-none focus:border-imss-green" placeholder="Ej. 1 CAJA">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-medium text-[10px] text-slate-600 mb-0.5">Presentación</label>
+                            <input type="text" value="${escapeHtml(med.presentacion)}" oninput="actualizarMedicamento(${index}, 'presentacion', this.value)" class="w-full p-1 border rounded text-xs outline-none focus:border-imss-green" placeholder="Ej. TABLETAS">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-[10px] text-slate-600 mb-0.5">Dosis / Indicaciones</label>
+                            <input type="text" value="${escapeHtml(med.dosis)}" oninput="actualizarMedicamento(${index}, 'dosis', this.value)" class="w-full p-1 border rounded text-xs outline-none focus:border-imss-green" placeholder="Ej. 1 TAB C/8 HRS POR 5 DÍAS">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            lucide.createIcons();
+            renderMedicamentosPreview();
+        }
+
+        // Renderiza los medicamentos en la Receta de Vista Previa
+        function renderMedicamentosPreview() {
+            const container = document.getElementById('previewMedicamentosList');
+            container.innerHTML = '';
+
+            if (medicamentos.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-slate-400 text-xs">No hay medicamentos prescritos.</div>`;
+                return;
+            }
+
+            medicamentos.forEach((med, index) => {
+                const item = document.createElement('div');
+                item.className = 'p-2.5 text-[9px] flex justify-between items-start gap-2 bg-white';
+                item.innerHTML = `
+                    <div class="space-y-1 flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-imss-green text-[10px]">${index + 1}.</span>
+                            <span class="font-bold text-slate-900 text-[10px] uppercase">${escapeHtml(med.nombre || 'MEDICAMENTO')}</span>
+                            ${med.presentacion ? `<span class="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded text-[8px] font-semibold border border-slate-200 uppercase">${escapeHtml(med.presentacion)}</span>` : ''}
+                        </div>
+                        <div class="text-slate-700 pl-4 font-medium text-[9px] uppercase">
+                            <strong>INDICACIONES:</strong> ${escapeHtml(med.dosis || 'SEGÚN INDICACIÓN MÉDICA')}
+                        </div>
+                    </div>
+                    <div class="text-right min-w-[70px]">
+                        <span class="block text-[7px] text-slate-500 font-bold uppercase">CANTIDAD:</span>
+                        <span class="font-bold text-slate-900 border border-slate-300 px-1.5 py-0.5 rounded bg-slate-50 block text-center">${escapeHtml(med.cantidad || '1')}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // Agregar un nuevo item a la lista
+        function agregarMedicamentoForm() {
+            if (medicamentos.length >= 5) {
+                mostrarToast('Máximo 5 medicamentos por receta');
+                return;
+            }
+            medicamentos.push({
+                nombre: '',
+                presentacion: '',
+                dosis: '',
+                cantidad: '1 CAJA'
+            });
+            renderMedicamentosForm();
+        }
+
+        // Eliminar medicamento de la lista
+        function eliminarMedicamento(index) {
+            if (medicamentos.length > 1) {
+                medicamentos.splice(index, 1);
+                renderMedicamentosForm();
+            } else {
+                mostrarToast('La receta debe incluir al menos 1 medicamento');
+            }
+        }
+
+        // Actualizar valores de medicamentos
+        function actualizarMedicamento(index, field, value) {
+            medicamentos[index][field] = value;
+            renderMedicamentosPreview();
+        }
+
+        // Autocompletar con datos de ejemplo realistas del IMSS
+        function autocompletar() {
+            document.getElementById('inputDelegacion').value = 'TABASCO';
+            document.getElementById('inputUmf').value = 'UMF No. 43 VILLAHERMOSA';
+            document.getElementById('inputTurno').value = 'MATUTINO';
+            document.getElementById('inputConsultorio').value = '03';
+
+            document.getElementById('inputPaciente').value = 'GARCÍA HERNÁNDEZ CARLOS';
+            document.getElementById('inputNss').value = '34098212341';
+            document.getElementById('inputAgregado').value = '1M1985OR';
+            document.getElementById('inputCurp').value = 'GAHC850412HMCRR09';
+
+            document.getElementById('inputMedico').value = 'DRA. ELENA MENDOZA SALAZAR';
+            document.getElementById('inputCedula').value = '84920182';
+            document.getElementById('inputMatricula').value = '99182304';
+
+            document.getElementById('inputDiagnostico').value = 'J06.9 INFECCIÓN AGUDA DE LAS VÍAS RESPIRATORIAS SUPERIORES';
+            document.getElementById('inputIndicaciones').value = '1. Reposo relativo en domicilio por 48 horas.\n2. Ingesta abundante de líquidos y alimentos ricos en vitamina C.\n3. Control térmico por medios físicos en caso de fiebre.';
+
+            medicamentos = [
+                {
+                    nombre: 'AMOXICILINA / AC. CLAVULÁNICO 875/125 MG',
+                    presentacion: 'TABLETAS',
+                    dosis: 'TOMAR 1 TABLETA CADA 12 HORAS POR 7 DÍAS VÍA ORAL CON ALIMENTOS',
+                    cantidad: '1 CAJA'
+                },
+                {
+                    nombre: 'PARACETAMOL 500 MG',
+                    presentacion: 'TABLETAS',
+                    dosis: 'TOMAR 1 TABLETA CADA 8 HORAS EN CASO DE DOLOR O FIEBRE POR 5 DÍAS',
+                    cantidad: '1 ENVASE'
+                },
+                {
+                    nombre: 'AMBROXOL SOLUCIÓN 300MG/100ML',
+                    presentacion: 'JARABE',
+                    dosis: 'TOMAR 10 ML CADA 8 HORAS POR 5 DÍAS',
+                    cantidad: '1 FRASCO'
+                }
+            ];
+
+            // Disparar eventos de actualización manual
+            const inputs = document.querySelectorAll('#recipeForm input, #recipeForm select, #recipeForm textarea');
+            inputs.forEach(input => {
+                input.dispatchEvent(new Event('input'));
+            });
+
+            renderMedicamentosForm();
+            generarFolio();
+            mostrarToast('Datos de ejemplo del IMSS cargados');
+        }
+
+        // Limpiar el formulario
+        function limpiarFormulario() {
+            document.getElementById('recipeForm').reset();
+            medicamentos = [{
+                nombre: '',
+                presentacion: '',
+                dosis: '',
+                cantidad: '1 CAJA'
+            }];
+            
+            const inputs = document.querySelectorAll('#recipeForm input, #recipeForm textarea');
+            inputs.forEach(input => {
+                input.dispatchEvent(new Event('input'));
+            });
+
+            renderMedicamentosForm();
+            mostrarToast('Formulario limpiado');
+        }
+
+        // Función para imprimir/guardar PDF
+        function imprimirReceta() {
+            window.print();
+        }
+
+        // Helper para escapar HTML y prevenir vulnerabilidades
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+
+        // Función Notificación Toast
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.innerText = mensaje;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
